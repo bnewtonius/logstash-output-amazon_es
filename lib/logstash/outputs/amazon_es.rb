@@ -4,6 +4,7 @@ require "logstash/environment"
 require "logstash/outputs/base"
 require "logstash/outputs/amazon_es/http_client"
 require "logstash/json"
+require "benchmark"
 require "concurrent"
 require "stud/buffer"
 require "socket"
@@ -358,7 +359,11 @@ class LogStash::Outputs::AmazonES < LogStash::Outputs::Base
   public
   def flush(actions, teardown = false)
     begin
-      submit(actions)
+      Benchmark.bm(7) do |benchmark|
+        benchmark.report("submit in flush:") {
+          submit(actions)
+        }
+      end
     rescue Manticore::SocketException => e
       # If we can't even connect to the server let's just print out the URL (:hosts is actually a URL)
       # and let the user sort it out from there
@@ -458,7 +463,11 @@ class LogStash::Outputs::AmazonES < LogStash::Outputs::Base
         end
       end.compact
 
-      submit(buffer) unless buffer.empty?
+      Benchmark.bm(7) do |benchmark|
+        benchmark.report("submit in retry:") {
+          submit(buffer) unless buffer.empty?
+        }
+      end
     end
 
     @retry_flush_mutex.synchronize {
